@@ -1,6 +1,7 @@
-import subprocess
 import os
+import subprocess
 import sys
+import ctypes
 
 try:
     import psutil
@@ -9,6 +10,7 @@ except ImportError:
     os.system('python -m pip install psutil')
     # Now import the module again for global access
     import psutil
+
 
 def get_available_network_adapters():
     addresses = psutil.net_if_addrs()
@@ -21,17 +23,22 @@ def get_available_network_adapters():
             available_networks.append(intface)
     return available_networks
 
+
 def enable_network_adapter(adapter_index):
     subprocess.call(f'wmic path win32_networkadapter where index={adapter_index} call enable', shell=True)
+
 
 def disable_network_adapter(adapter_index):
     subprocess.call(f'wmic path win32_networkadapter where index={adapter_index} call disable', shell=True)
 
+
 def enable_wifi():
     os.system("netsh interface set interface 'Wi-Fi' enabled")
 
+
 def disable_wifi():
     os.system("netsh interface set interface 'Wi-Fi' disabled")
+
 
 def print_colored(text, color="white"):
     colors = {
@@ -40,26 +47,37 @@ def print_colored(text, color="white"):
     }
     return f"{colors.get(color, colors['white'])}{text}{colors['white']}"
 
+
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: python my_script.py [D/d] or [E/e]")
+    if os.name != 'nt':
+        print("This script's admin check is currently limited to Windows. Exiting.")
         sys.exit(1)
 
-    action = sys.argv[1].lower()
-    available_adapters = get_available_network_adapters()
-
-    if action == "d":
-        for adapter in available_adapters:
-            disable_network_adapter(available_adapters.index(adapter) + 1)
-        disable_wifi()
-        print("All network adapters and Wi-Fi are now disabled.")
-    elif action == "e":
-        for adapter in available_adapters:
-            enable_network_adapter(available_adapters.index(adapter) + 1)
-        enable_wifi()
-        print("All network adapters and Wi-Fi are now enabled.")
+        # Check for specific environment variable often indicating admin rights on Windows
+    if ctypes.windll.shell32.IsUserAnAdmin() == 0:
+        print("This script requires administrator privileges. Please run it as administrator and try again.")
+        sys.exit(1)
     else:
-        print("Invalid argument. Please provide 'D' or 'E'.")
+        if len(sys.argv) != 2:
+            print("Usage: python my_script.py [D/d] or [E/e]")
+            sys.exit(1)
+
+        action = sys.argv[1].lower()
+        available_adapters = get_available_network_adapters()
+
+        if action == "d":
+            for adapter in available_adapters:
+                disable_network_adapter(available_adapters.index(adapter) + 1)
+            disable_wifi()
+            print("All network adapters and Wi-Fi are now disabled.")
+        elif action == "e":
+            for adapter in available_adapters:
+                enable_network_adapter(available_adapters.index(adapter) + 1)
+            enable_wifi()
+            print("All network adapters and Wi-Fi are now enabled.")
+        else:
+            print("Invalid argument. Please provide 'D/d' or 'E/e'.")
+
 
 if __name__ == "__main__":
     main()
